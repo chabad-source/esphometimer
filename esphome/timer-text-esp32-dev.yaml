@@ -1,0 +1,169 @@
+substitutions:
+  num_of_timers: "20"
+
+esphome:
+  name: timer-text-esp32-dev
+  friendly_name: timer-text-esp32-dev
+  includes:
+    - header-files/timer_text.h
+  on_boot:
+    - priority: -100.0
+      then:
+        - wait_until: 
+            time.has_time:
+        - lambda: |-
+            setAllTimersTimestamp();
+
+esp32:
+  board: esp32doit-devkit-v1
+  
+wifi:
+  ssid:     !secret wifi_ssid5
+  password: !secret wifi_password5
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "esp32-dev Fallback Hotspot"
+    password: ""
+ 
+logger:
+captive_portal:
+api:
+ota:
+web_server:
+  port: 80
+  version: 3
+  # js_url: https://deploy-preview-91--esphome-webserver.netlify.app/v2/www.js
+  js_url: https://deploy-preview-96--esphome-webserver.netlify.app/v3/www.js
+
+text:
+  - platform: template
+    name: "03 Timer Configuration"
+    id: timer_text
+    restore_value: FALSE
+    # initial_value: "Live;1,Mode;0,Time;02:36,Repeat;1,Days;SMTWTFS,Output;1,Action;1,Offset;-00:30"
+    optimistic: true
+    min_length: 0
+    max_length: 255 # max. is only 255
+    mode: text
+    # on_value:
+    #   then:
+    #     - logger.log:
+    #         format: "%s"
+    #         args: ["x.c_str()"]
+
+    #     - lambda: |-
+
+    #         test(x.c_str());
+
+text_sensor:
+  - platform: template
+    name: 00 Current Time
+    # internal: true
+    lambda: 'return id(sntp_time).now().strftime("%a, %b %e, %Y, %l:%M %p");'
+    update_interval: 60s
+
+time:
+  - platform: sntp
+    id: sntp_time
+    timezone: America/New_York
+    on_time:
+      - seconds: 0
+        minutes: 0
+        hours: 0
+        then:
+          - lambda: |-
+              setAllTimersTimestamp();
+
+sun:
+  id: mysun
+  latitude: 40.669000
+  longitude: -73.942770
+
+interval:
+  - interval: 1min
+    then:
+      - lambda: |-
+          onInterval();
+
+globals:
+  - id: global_timers
+    type: struct Timer[${num_of_timers}]
+    restore_value: yes # switch to yes for deployment
+  - id: global_next_run
+    type: time_t[${num_of_timers}]
+    restore_value: no
+  - id: num_of_timers  
+    type: uint8_t
+    initial_value: ${num_of_timers}
+
+switch:
+  # gpio switches
+  - platform: gpio
+    name: Built-in LED
+    id: relay_0
+    pin: 2
+    inverted: false
+    restore_mode: RESTORE_DEFAULT_OFF
+  - platform: gpio
+    name: Relay 1
+
+
+    id: relay_1
+    pin: 4
+    inverted: false
+    restore_mode: RESTORE_DEFAULT_OFF
+  # template switches
+  - platform: template
+    name: 01 Disable All Timers
+    id: override_timer
+    optimistic : true
+    restore_mode: RESTORE_DEFAULT_OFF
+
+select:
+  - platform: template
+    id: select_timer
+    name: "02 Timer Select"
+    optimistic : true
+    restore_value: false
+    initial_option: -- Select --
+    options: 
+      - -- Select --
+      - Timer 1
+      - Timer 2
+      - Timer 3
+      - Timer 4
+      - Timer 5
+      - Timer 6
+      - Timer 7
+      - Timer 8
+      - Timer 9
+      - Timer 10
+      - Timer 11
+      - Timer 12
+      - Timer 13
+      - Timer 14
+      - Timer 15
+      - Timer 16
+      - Timer 17
+      - Timer 18
+      - Timer 19
+      - Timer 20
+    on_value:
+      - lambda: |-
+          onSelect(x);
+
+button:
+  - platform: template
+    name: 04 Timer Save
+    on_press:
+      - lambda: |-
+          onPressSave();
+  - platform: template
+    name: Timer Manual Recheck
+    on_press:
+      - lambda: |-
+          setAllTimersTimestamp();
+
+  - platform: restart
+    name: "99 Restart"
