@@ -17,7 +17,6 @@ This project is using [ESPHome](https://esphome.io/).
 -   [x] Includes quick override option.
 -   [x] All running locally, no reliance on another server.
 
-![Web Server Screenshot](https://github.com/chabad-source/esphometimer/blob/main/images/Screenshot%202023-11-27%20211702.png)
 
 ## Instructions
 
