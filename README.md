@@ -29,8 +29,7 @@ This project is using [ESPHome](https://esphome.io/).
 -   Action sets the action to do when timer runs. 0 = off 1 = on and 2 = toggle.
 -   Output is the position of your relay, if you only have 1 relay use 0 (with two relays the first would be 0 and the second 1).
 -   When using an offset, set "Timer Negative Offset" to on to make the offset be applied to before sunrise or sunset.
--   If "Timer Repeat" is disabled the timer will only run once no matter if todays weekday is toggled.
--   After running once the timer will automatically disable it self.
+-   If "Repeat" is disabled the timer will only run once, after running the timer will automatically disable itself.
   
 ## Contribute 
 
