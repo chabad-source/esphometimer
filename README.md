@@ -21,7 +21,6 @@ This project is using [ESPHome](https://esphome.io/).
 ## Instructions
 
 -   Copy the code and edit to your ESPs specifications.
--   Copy the ids of the relays you have and add them into the top of the timer.h file. Be sure to change the number of relays if necessary.
 -   Be sure to include your location and the correct time zone for your area.
 
 *Usage Instructions*
