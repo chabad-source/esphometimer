@@ -8,7 +8,7 @@ from esphome.const import (
 )
 
 """
-timers:
+timer:
   quantity: 2
   text_input:
     name: "Timer Configuration"
@@ -27,12 +27,12 @@ timers:
     - "Lamp"
 """
 
-timers_ns = cg.esphome_ns.namespace("timers")
-TimerComponent = timers_ns.class_("TimerComponent", cg.Component)
-TimerText = timers_ns.class_("TimerText", text.Text, cg.Component)
-TimerSelect = timers_ns.class_("TimerSelect", select.Select, cg.Component)
-TimerSaveButton = timers_ns.class_("TimerSaveButton", button.Button, cg.Component)
-TimerDisableSwitch = timers_ns.class_("TimerDisableSwitch", switch.Switch, cg.Component)
+timer_ns = cg.esphome_ns.namespace("timer")
+TimerComponent = timer_ns.class_("TimerComponent", cg.Component)
+TimerText = timer_ns.class_("TimerText", text.Text, cg.Component)
+TimerSelect = timer_ns.class_("TimerSelect", select.Select, cg.Component)
+TimerSaveButton = timer_ns.class_("TimerSaveButton", button.Button, cg.Component)
+TimerDisableSwitch = timer_ns.class_("TimerDisableSwitch", switch.Switch, cg.Component)
 
 CONF_QUANTITY = "quantity"
 CONF_TEXT_INPUT = "text_input"
