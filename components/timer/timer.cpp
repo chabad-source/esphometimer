@@ -34,6 +34,12 @@ or connect to: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 
 #include "timer.h"
 
+
+namespace esphome {
+namespace timer {
+
+static const char *const TAG = "timer";
+
 std::string Timer::to_string() const {
     std::string result = "Live;" + std::to_string(live) +
                             ",Mode;" + std::to_string(mode);
@@ -370,3 +376,6 @@ void onPressSave() {
         setTimerTimestamp(index);
     }
 } // onPressSave
+
+}  // namespace timer
+}  // namespace esphome

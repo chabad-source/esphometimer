@@ -36,6 +36,12 @@ or connect to: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 #pragma once
 #include <string>
 
+
+
+namespace esphome {
+namespace timer {
+
+
 struct Timer {
     bool live : 1;
     bool repeat : 1;
@@ -64,7 +70,7 @@ struct Timer {
     std::string to_string() const;
     void reset();
     void from_string(const std::string& settings);
-};
+} __attribute__((packed));
 
 void doRelayAction(const uint8_t& i, const time_t& timestamp, const bool& set_relays);
 bool dayMatches(const esphome::ESPTime& date, const struct Timer& timer);
@@ -76,3 +82,6 @@ void setAllTimersTimestamp();
 void onInterval();
 void onSelect();
 void onPressSave();
+
+}  // namespace timer
+}  // namespace esphome
