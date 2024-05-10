@@ -32,164 +32,135 @@ or connect to: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 * sample "Live;1,Mode;0,Time;2:36,Repeat;1,Days;SMTWTFS,Output;1,Action;2,Offset;-0:30,"
 ****************************************************/
 
-#pragma once
-#include <string>
+#include "timer.h"
 
-struct Timer {
-    bool live : 1;
-    bool repeat : 1;
-    bool use_negative_offset : 1;
-    union {
-        struct {
-            bool sun : 1;
-            bool mon : 1;
-            bool tue : 1;
-            bool wed : 1;
-            bool thu : 1;
-            bool fri : 1;
-            bool sat : 1;
-        } day;
-        uint8_t raw;
-    } days;
-    uint8_t mode : 2; // Using 2 bits to give up to 4 options
-    uint8_t action : 2; // Using 2 bits to give up to 4 options
-    uint8_t output : 2; // Using 2 bits to give up to 4 options
-    uint8_t hour : 5; // Using 5 bits to represent hours (0-23)
-    uint8_t minute : 6; // Using 6 bits to represent minutes (0-59)
-    uint8_t offset_hour : 5; // Using 5 bits to represent hours (0-23)
-    uint8_t offset_minute : 6; // Using 6 bits to represent minutes (0-59)
-    time_t last_ran_timestamp; // Uses 32 bits
+std::string Timer::to_string() const {
+    std::string result = "Live;" + std::to_string(live) +
+                            ",Mode;" + std::to_string(mode);
 
-
-    std::string to_string() const {
-        std::string result = "Live;" + std::to_string(live) +
-                             ",Mode;" + std::to_string(mode);
-
-        // Include time only if mode is 0
-        if (mode == 0) {
-            result += ",Time;" + std::to_string(hour) + ":" +
-                      (minute < 10 ? "0" + std::to_string(minute) : std::to_string(minute));
-        }
-
-        result += ",Repeat;" + std::to_string(repeat) +
-                  ",Days;" +
-                  (days.day.sun ? "S" : "-") +
-                  (days.day.mon ? "M" : "-") +
-                  (days.day.tue ? "T" : "-") +
-                  (days.day.wed ? "W" : "-") +
-                  (days.day.thu ? "T" : "-") +
-                  (days.day.fri ? "F" : "-") +
-                  (days.day.sat ? "S" : "-") +
-                  ",Output;" + std::to_string(output) +
-                  ",Action;" + std::to_string(action);
-
-        // Include offset if it's not zero
-        if (offset_hour != 0 || offset_minute != 0) {
-            result += ",Offset;";
-            result += use_negative_offset ? '-' : '+';
-            result += std::to_string(offset_hour) + ":" +
-                      (offset_minute < 10 ? "0" + std::to_string(offset_minute) : std::to_string(offset_minute));
-        }
-
-        return result;
+    // Include time only if mode is 0
+    if (mode == 0) {
+        result += ",Time;" + std::to_string(hour) + ":" +
+                    (minute < 10 ? "0" + std::to_string(minute) : std::to_string(minute));
     }
 
-    void reset() {
-        live = false;
-        repeat = false;
-        use_negative_offset = false;
-        days.raw = 0;
-        mode = 0;
-        action = 0;
-        output = 0;
-        hour = 0;
-        minute = 0;
-        offset_hour = 0;
-        offset_minute = 0;
-        last_ran_timestamp = 0;
+    result += ",Repeat;" + std::to_string(repeat) +
+                ",Days;" +
+                (days.day.sun ? "S" : "-") +
+                (days.day.mon ? "M" : "-") +
+                (days.day.tue ? "T" : "-") +
+                (days.day.wed ? "W" : "-") +
+                (days.day.thu ? "T" : "-") +
+                (days.day.fri ? "F" : "-") +
+                (days.day.sat ? "S" : "-") +
+                ",Output;" + std::to_string(output) +
+                ",Action;" + std::to_string(action);
+
+    // Include offset if it's not zero
+    if (offset_hour != 0 || offset_minute != 0) {
+        result += ",Offset;";
+        result += use_negative_offset ? '-' : '+';
+        result += std::to_string(offset_hour) + ":" +
+                    (offset_minute < 10 ? "0" + std::to_string(offset_minute) : std::to_string(offset_minute));
     }
 
-    void from_string(const std::string& settings) {
-        reset(); // resets the timer
-        uint16_t index = 0;
-        while (index < settings.size()) {
-            // Find the next key-value pair
-            size_t delimiterPos = settings.find(',', index);
-            if (delimiterPos == std::string::npos) {
-                delimiterPos = settings.size();  // Handle the last key-value pair
-            }
-            std::string keyValuePair = settings.substr(index, delimiterPos - index);
+    return result;
+}
 
-            // Split key and value
-            size_t keyDelimiterPos = keyValuePair.find(';');
-            if (keyDelimiterPos == std::string::npos) {
-                break;
-            }
-            std::string key = keyValuePair.substr(0, keyDelimiterPos);
-            std::string value = keyValuePair.substr(keyDelimiterPos + 1);
+void Timer::reset() {
+    live = false;
+    repeat = false;
+    use_negative_offset = false;
+    days.raw = 0;
+    mode = 0;
+    action = 0;
+    output = 0;
+    hour = 0;
+    minute = 0;
+    offset_hour = 0;
+    offset_minute = 0;
+    last_ran_timestamp = 0;
+}
 
-            // Update struct settings based on the key-value pair
-            if (key == "Live") {
-                live = std::stoi(value);
-            } else if (key == "Mode") {
-                mode = std::stoi(value);
-            } else if (key == "Time") {
+void Timer::from_string(const std::string& settings) {
+    reset(); // resets the timer
+    uint16_t index = 0;
+    while (index < settings.size()) {
+        // Find the next key-value pair
+        size_t delimiterPos = settings.find(',', index);
+        if (delimiterPos == std::string::npos) {
+            delimiterPos = settings.size();  // Handle the last key-value pair
+        }
+        std::string keyValuePair = settings.substr(index, delimiterPos - index);
+
+        // Split key and value
+        size_t keyDelimiterPos = keyValuePair.find(';');
+        if (keyDelimiterPos == std::string::npos) {
+            break;
+        }
+        std::string key = keyValuePair.substr(0, keyDelimiterPos);
+        std::string value = keyValuePair.substr(keyDelimiterPos + 1);
+
+        // Update struct settings based on the key-value pair
+        if (key == "Live") {
+            live = std::stoi(value);
+        } else if (key == "Mode") {
+            mode = std::stoi(value);
+        } else if (key == "Time") {
+            size_t colonPos = value.find(':');
+            if (colonPos != std::string::npos) {
+                hour = std::stoi(value.substr(0, colonPos));
+                minute = std::stoi(value.substr(colonPos + 1));
+            }
+        } else if (key == "Repeat") {
+            repeat = std::stoi(value);
+        } else if (key == "Days") {
+            for (size_t i = 0; i < value.size(); ++i) {
+                if (value[i] != '-' && value[i] != '0') {
+                    switch (i) {
+                        case 0: days.day.sun = true; break;
+                        case 1: days.day.mon = true; break;
+                        case 2: days.day.tue = true; break;
+                        case 3: days.day.wed = true; break;
+                        case 4: days.day.thu = true; break;
+                        case 5: days.day.fri = true; break;
+                        case 6: days.day.sat = true; break;
+                        default: break;
+                    }
+                }
+            }
+        } else if (key == "Output") {
+            output = std::stoi(value);
+        } else if (key == "Action") {
+            action = std::stoi(value);
+        } else if (key == "Offset") {
+            if (!value.empty()) {
                 size_t colonPos = value.find(':');
-                if (colonPos != std::string::npos) {
-                    hour = std::stoi(value.substr(0, colonPos));
-                    minute = std::stoi(value.substr(colonPos + 1));
-                }
-            } else if (key == "Repeat") {
-                repeat = std::stoi(value);
-            } else if (key == "Days") {
-                for (size_t i = 0; i < value.size(); ++i) {
-                    if (value[i] != '-' && value[i] != '0') {
-                        switch (i) {
-                            case 0: days.day.sun = true; break;
-                            case 1: days.day.mon = true; break;
-                            case 2: days.day.tue = true; break;
-                            case 3: days.day.wed = true; break;
-                            case 4: days.day.thu = true; break;
-                            case 5: days.day.fri = true; break;
-                            case 6: days.day.sat = true; break;
-                            default: break;
-                        }
+                // check if offset starts with a + or - (or blank)
+                if (value[0] == '-') {
+                    use_negative_offset = true;
+                    if (colonPos != std::string::npos) {
+                        offset_hour = std::stoi(value.substr(1, colonPos));
+                    }
+                } else if (value[0] == '+') {
+                    use_negative_offset = false;
+                    if (colonPos != std::string::npos) {
+                        offset_hour = std::stoi(value.substr(1, colonPos));
+                    }
+                } else {
+                    use_negative_offset = false;
+                    if (colonPos != std::string::npos) {
+                        offset_hour = std::stoi(value.substr(0, colonPos));
                     }
                 }
-            } else if (key == "Output") {
-                output = std::stoi(value);
-            } else if (key == "Action") {
-                action = std::stoi(value);
-            } else if (key == "Offset") {
-                if (!value.empty()) {
-                    size_t colonPos = value.find(':');
-                    // check if offset starts with a + or - (or blank)
-                    if (value[0] == '-') {
-                        use_negative_offset = true;
-                        if (colonPos != std::string::npos) {
-                            offset_hour = std::stoi(value.substr(1, colonPos));
-                        }
-                    } else if (value[0] == '+') {
-                        use_negative_offset = false;
-                        if (colonPos != std::string::npos) {
-                            offset_hour = std::stoi(value.substr(1, colonPos));
-                        }
-                    } else {
-                        use_negative_offset = false;
-                        if (colonPos != std::string::npos) {
-                            offset_hour = std::stoi(value.substr(0, colonPos));
-                        }
-                    }
-                    offset_minute = std::stoi(value.substr(colonPos + 1));
-                }
+                offset_minute = std::stoi(value.substr(colonPos + 1));
             }
-
-            // Move to the next key-value pair
-            index = delimiterPos + 1;
         }
-    }
 
-} ATTRIBUTE_PACKED; // struct Timer
+        // Move to the next key-value pair
+        index = delimiterPos + 1;
+    }
+}
 
 void doRelayAction(const uint8_t& i, const time_t& timestamp, const bool& set_relays) {
     ESP_LOGD("doRelayAction", "------ doRelayAction ran ------");
