@@ -23,6 +23,20 @@ This project is using [ESPHome](https://esphome.io/).
 -   Copy the code and edit to your ESPs specifications.
 -   Be sure to include your location and the correct time zone for your area.
 
+### Timer Configuration
+
+Each setting group is seperated by a `,`. The name of the setting must be written exactly as listed below, followed by `;` and the value.
+- **Live**: Indicates whether the action is live or not. `0` = disbaled, `1` = enabled.
+- **Mode**: Specifies the mode of operation. `0` = time, `1` = sunrise, `2` = sunset.
+- **Time**: Represents the time at which the action occurs. time in 24 hour format with a `:` in between (example `18:30`). (not needed if mode isn't set to time `0`).
+- **Repeat**: Determines if the action should repeat.  `0` = disbaled, `1` = enabled.
+- **Days**: Specifies the days on which the action occurs. `-` or `0` to disable, any other character will enable that day of the week. Days are determined by position in the string, to repeat on sunday it looks like this `S------`, for sunday and monday `SM-----` etc.
+- **Output**: Indicates the output of the action. TBD
+- **Action**: Specifies the type of action.  `0` = off, `1` = on, `2` = toggle.
+- **Offset**: Represents any time offset applied to the action. Same format as time. Prface with a `+` or `-` for positive or negative offset.
+
+Timer Configuration example: `Live;1,Mode;0,Time;9:41,Repeat;1,Days;-MTWTF-,Output;1,Action;2,Offset;-00:01`
+
 *Usage Instructions*
 -   Mode 0 uses the time as the base. Mode 1 uses sunrise, Mode 2 uses sunset.
 -   Action sets the action to do when timer runs. 0 = off 1 = on and 2 = toggle.
