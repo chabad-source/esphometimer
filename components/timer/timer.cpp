@@ -32,8 +32,7 @@ or connect to: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 * sample "Live;1,Mode;0,Time;2:36,Repeat;1,Days;SMTWTFS,Output;1,Action;2,Offset;-0:30,"
 ****************************************************/
 
-#pragma once
-#include <string>
+#include "timer.h"
 
 struct Timer {
     bool live : 1;
