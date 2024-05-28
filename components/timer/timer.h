@@ -16,13 +16,12 @@ or connect to: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 /***************************************************
 *      ***** Timer Format Cheat Guide *****
 * **************************************************
-*              ***** Switches *****
+*              ***** settings *****
 *   *** Value set to '1' enabled '0' disabled ***
 * 0 = Enabled
 * 1-7 = Days (sun-sat)
 * 8 = Repeat
 * 9 = Negative Offset
-*               ***** Numbers *****
 * 10 = Time hour
 * 11 = Time minute
 * 12 = Output  {value '0' for the first position of switch in the 'relays' variable}
