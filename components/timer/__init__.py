@@ -7,7 +7,11 @@ from esphome.const import (
     CONF_MODE,
     CONF_OUTPUTS,
     CONF_THEN,
+    CONF_TRIGGER_ID,
+    CONF_TYPE,
 )
+
+AUTO_LOAD = [ "button", "select", "switch", "text" ]
 
 """
 timer:
@@ -33,11 +37,15 @@ timer:
 """
 
 timer_ns = cg.esphome_ns.namespace("timer")
-TimerComponent = timer_ns.class_("TimerComponent", cg.Component)
+Timer = timer_ns.class_("Timer", cg.Component)
 TimerText = timer_ns.class_("TimerText", text.Text, cg.Component)
 TimerSelect = timer_ns.class_("TimerSelect", select.Select, cg.Component)
 TimerSaveButton = timer_ns.class_("TimerSaveButton", button.Button, cg.Component)
 TimerDisableSwitch = timer_ns.class_("TimerDisableSwitch", switch.Switch, cg.Component)
+OutputTrigger = timer_ns.class_(
+    "OutputTrigger", automation.Trigger.template(cg.float_)
+)
+
 
 CONF_QUANTITY = "quantity"
 CONF_TEXT_INPUT = "text_input"
@@ -60,16 +68,19 @@ OUTPUT_SCHEMA = cv.typed_schema(
         CONF_SWITCH: {
             cv.GenerateID(CONF_ID): cv.use_id(switch.Switch),
         },
-        CONF_AUTOMATION: {
-            cv.Required(CONF_THEN): automation.validate_automation(single=True),
-        }
+        CONF_AUTOMATION: automation.validate_automation(
+            {
+                cv.GenerateID(CONF_TRIGGER_ID): cv.declare_id(automation.Trigger.template(cg.float_)),
+            },
+            single=True,
+        ),
     }
 )
 
 CONFIG_SCHEMA = cv.All(
     cv.COMPONENT_SCHEMA.extend(
         {
-            cv.GenerateID(): cv.declare_id(TimerComponent),
+            cv.GenerateID(): cv.declare_id(Timer),
             cv.Required(CONF_QUANTITY): cv.positive_int,
             cv.Required(CONF_TEXT_INPUT): text.TEXT_SCHEMA.extend(
                 {
@@ -88,5 +99,33 @@ CONFIG_SCHEMA = cv.All(
 )
 
 async def to_code(config):
-    pass
+    var = cg.new_Pvariable(config[CONF_ID])
+    await cg.register_component(var, config)
+    numTimers = config[CONF_QUANTITY]
+    cg.add(var.set_num_timers(numTimers));
+
+    if CONF_NAMES in config:
+        names = config[CONF_NAMES]
+    else:
+        names = [f'Timer{n + 1}' for n in range(numTimers)]
+
+    if CONF_TEXT_INPUT in config:
+        txt = await text.new_text(config[CONF_TEXT_INPUT])
+        cg.add(var.set_timer_text(txt))
+
+    if CONF_TIMER_SELECT in config:
+        sel = await select.new_select(config[CONF_TIMER_SELECT], options=names)
+        cg.add(var.set_timer_select(sel))
+
+    if CONF_SAVE_BUTTON in config:
+        sb = await button.new_button(config[CONF_SAVE_BUTTON])
+
+    for conf in config[CONF_OUTPUTS]:
+        if conf[CONF_TYPE] == CONF_SWITCH:
+            sw = await cg.get_variable(conf[CONF_ID])
+            cg.add(var.add_switch_output(sw))
+        else:
+            trigger = cg.new_Pvariable(conf[CONF_TRIGGER_ID])
+            await automation.build_automation(trigger, [(cg.float_, "action")], conf)
+            cg.add(var.add_automation_output(trigger))
 

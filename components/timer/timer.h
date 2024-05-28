@@ -34,15 +34,23 @@ or connect to: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 ****************************************************/
 
 #pragma once
-#include <string>
+#include "esphome/core/automation.h"
+#include "esphome/core/component.h"
+#include "esphome/components/button/button.h"
+#include "esphome/components/select/select.h"
+#include "esphome/components/switch/switch.h"
+#include "esphome/components/text/text.h"
 
+#include <string>
+#include <vector>
 
 
 namespace esphome {
 namespace timer {
 
 
-struct Timer {
+struct TimerData {
+    bool valid : 1;
     bool live : 1;
     bool repeat : 1;
     bool use_negative_offset : 1;
@@ -58,13 +66,11 @@ struct Timer {
         } day;
         uint8_t raw;
     } days;
-    uint8_t mode : 2;
-    uint8_t action : 2;
-    uint8_t output : 2;
-    uint8_t hour : 5;
-    uint8_t minute : 6;
-    uint8_t offset_hour : 5;
-    uint8_t offset_minute : 6;
+    uint8_t mode;
+    uint8_t output;
+    float action;
+    uint8_t hour;
+    uint8_t minute;
     time_t last_ran_timestamp;
 
     std::string to_string() const;
@@ -72,16 +78,47 @@ struct Timer {
     void from_string(const std::string& settings);
 } __attribute__((packed));
 
-void doRelayAction(const uint8_t& i, const time_t& timestamp, const bool& set_relays);
-bool dayMatches(const esphome::ESPTime& date, const struct Timer& timer);
-bool isSameDay(std::time_t timestamp1, std::time_t timestamp2);
-void checkForMissedTimer(const uint8_t& i);
-time_t getTimerTimestamp(const struct Timer& timer);
-void setTimerTimestamp(const uint8_t& i);
-void setAllTimersTimestamp();
-void onInterval();
-void onSelect();
-void onPressSave();
+class Timer : public Component {
+ public:
+  float get_setup_priority() const override { return setup_priority::DATA; }
+  void setup() override;
+  void loop() override;
+  void dump_config() override;
+
+  void set_num_timers(int count);
+  void add_switch_output(switch_::Switch *sw);
+  void add_automation_output(Trigger<float> *trigger);
+  void set_timer_text(text::Text *txt);
+  void set_timer_select(select::Select *sel);
+
+  void choose(int index);
+  void set_timer_text(const std::string &value);
+
+ protected:
+  std::vector<TimerData> timers_;
+  std::vector<std::function<void(float)>> outputs_;
+  text::Text *text_{nullptr};
+  select::Select *select_{nullptr};
+  int selected_timer_{-1};
+  bool updating_{false};
+
+  void choose_(int index, bool update);
+};
+
+class TimerText : public Component, public text::Text {
+ public:
+  void control(const std::string &value);
+};
+
+class TimerSelect : public Component, public select::Select {
+ public:
+  void control(const std::string &value);
+};
+
+class TimerSaveButton : public Component, public button::Button {
+ public:
+  void press_action() {}
+};
 
 }  // namespace timer
 }  // namespace esphome
