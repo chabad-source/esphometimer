@@ -1,27 +1,26 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome import automation
-from esphome.components import button, select, switch, text
+from esphome.components import select, switch, text, time
 from esphome.const import (
     CONF_ID,
     CONF_MODE,
     CONF_OUTPUTS,
     CONF_THEN,
+    CONF_TIME_ID,
     CONF_TRIGGER_ID,
     CONF_TYPE,
 )
 
-AUTO_LOAD = [ "button", "select", "switch", "text" ]
+AUTO_LOAD = [ "select", "switch", "text" ]
 
 """
 timer:
-  quantity: 2
+  quantity: 3
   text_input:
     name: "Timer Configuration"
   timer_select:
     name: "Select Timer"
-  save_button:
-    name: Timer Save
   disable_switch:
     name: Disable Timers
   outputs:
@@ -40,7 +39,6 @@ timer_ns = cg.esphome_ns.namespace("timer")
 Timer = timer_ns.class_("Timer", cg.Component)
 TimerText = timer_ns.class_("TimerText", text.Text, cg.Component)
 TimerSelect = timer_ns.class_("TimerSelect", select.Select, cg.Component)
-TimerSaveButton = timer_ns.class_("TimerSaveButton", button.Button, cg.Component)
 TimerDisableSwitch = timer_ns.class_("TimerDisableSwitch", switch.Switch, cg.Component)
 OutputTrigger = timer_ns.class_(
     "OutputTrigger", automation.Trigger.template(cg.float_)
@@ -50,7 +48,6 @@ OutputTrigger = timer_ns.class_(
 CONF_QUANTITY = "quantity"
 CONF_TEXT_INPUT = "text_input"
 CONF_TIMER_SELECT = "timer_select"
-CONF_SAVE_BUTTON = "save_button"
 CONF_DISABLE_SWITCH = "disable_switch"
 CONF_NAMES = "names"
 CONF_SWITCH = "switch"
@@ -81,6 +78,7 @@ CONFIG_SCHEMA = cv.All(
     cv.COMPONENT_SCHEMA.extend(
         {
             cv.GenerateID(): cv.declare_id(Timer),
+            cv.GenerateID(CONF_TIME_ID): cv.use_id(time.RealTimeClock),
             cv.Required(CONF_QUANTITY): cv.positive_int,
             cv.Required(CONF_TEXT_INPUT): text.TEXT_SCHEMA.extend(
                 {
@@ -89,7 +87,6 @@ CONFIG_SCHEMA = cv.All(
                 }
             ),
             cv.Required(CONF_TIMER_SELECT): select.select_schema(TimerSelect),
-            cv.Required(CONF_SAVE_BUTTON): button.button_schema(TimerSaveButton),
             cv.Required(CONF_DISABLE_SWITCH): switch.switch_schema(TimerDisableSwitch),
             cv.Required(CONF_OUTPUTS): cv.ensure_list(OUTPUT_SCHEMA),
             cv.Optional(CONF_NAMES): cv.ensure_list(cv.string),
@@ -101,6 +98,8 @@ CONFIG_SCHEMA = cv.All(
 async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
     await cg.register_component(var, config)
+    time_ = await cg.get_variable(config[CONF_TIME_ID])
+    cg.add(var.set_time(time_))
     numTimers = config[CONF_QUANTITY]
     cg.add(var.set_num_timers(numTimers));
 
@@ -116,9 +115,6 @@ async def to_code(config):
     if CONF_TIMER_SELECT in config:
         sel = await select.new_select(config[CONF_TIMER_SELECT], options=names)
         cg.add(var.set_timer_select(sel))
-
-    if CONF_SAVE_BUTTON in config:
-        sb = await button.new_button(config[CONF_SAVE_BUTTON])
 
     for conf in config[CONF_OUTPUTS]:
         if conf[CONF_TYPE] == CONF_SWITCH:

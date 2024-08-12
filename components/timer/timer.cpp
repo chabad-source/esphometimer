@@ -41,6 +41,10 @@ namespace timer {
 
 static const char *const TAG = "timer";
 
+TimerData::TimerData() {
+  this->reset();
+}
+
 std::string TimerData::to_string() const {
     std::string result = str_sprintf("Live;%d,Mode;%d", this->live, this->mode);
 
@@ -160,12 +164,51 @@ void TimerData::from_string(const std::string& settings) {
     this->valid = true;
 }
 
+time_t TimerData::calc_next(time::RealTimeClock *time, time_t last) {
+  if (this->days.raw == 0)
+    return 0;
+  ESPTime now = time->now();
+  ESPTime next = last ? ESPTime::from_epoch_local(last) : now;
+  next.hour = this->hour;
+  next.minute = this->minute;
+  next.recalc_timestamp_local();
+  if (next.timestamp <= now.timestamp)
+    next.increment_day();
+  int offset = this->hour * 3600 + this->minute * 60;
+  if (this->use_negative_offset)
+    offset = -offset;
+  while (!(this->days.raw & (1 << (next.day_of_week - 1))))
+    next.increment_day();
+  next.recalc_timestamp_local();
+  return next.timestamp;
+}
+
 void Timer::setup() {
   ESP_LOGD(TAG, "setting up");
+  for (auto &data : this->timers_) {
+    if (!std::get<2>(data).load(&std::get<0>(data)))
+      break;
+  }
   this->choose_(0, true);
 }
 
 void Timer::loop() {
+  ESPTime now = this->time_->now();
+  if (!now.is_valid())
+    return;
+  if (!this->init_done_) {
+    for (auto &data : this->timers_) {
+      time_t &next = std::get<1>(data);
+      if (next) {
+        if (next < now.timestamp)
+          this->trigger_timer_(data);
+      } else {
+        next = std::get<0>(data).calc_next(this->time_, 0);
+        std::get<2>(data).save(&std::get<0>(data));
+      }
+    }
+    this->init_done_ = true;
+  }
 }
 
 void Timer::dump_config() {
@@ -173,7 +216,15 @@ void Timer::dump_config() {
 
 void Timer::set_num_timers(int count) {
   for (int i = 0; i < count; i++)
-    this->timers_.push_back(TimerData());
+    this->timers_.push_back(std::make_tuple(TimerData(), 0,
+          global_preferences->make_preference<TimerData>(12345678 + i)));
+}
+
+void Timer::trigger_timer_(timer_tuple_t &data){
+  TimerData &timer = std::get<0>(data);
+  time_t &next = std::get<1>(data);
+  next = std::get<0>(data).calc_next(this->time_, next);
+  std::get<2>(data).save(&timer);
 }
 
 void Timer::set_timer_text(text::Text *txt) {
@@ -217,10 +268,10 @@ void Timer::choose(int index) {
 }
 
 void Timer::set_timer_text(const std::string &value) {
-  this->timers_[this->selected_timer_].from_string(value);
+  std::get<0>(this->timers_[this->selected_timer_]).from_string(value);
   this->updating_ = true;
   if (this->text_ != nullptr)
-    this->text_->make_call().set_value(this->timers_[this->selected_timer_].to_string()).perform();
+    this->text_->make_call().set_value(std::get<0>(this->timers_[this->selected_timer_]).to_string()).perform();
   this->updating_ = false;
 }
 
@@ -232,7 +283,7 @@ void Timer::choose_(int index, bool update) {
     return;
   this->selected_timer_ = index;
   if (this->text_ != nullptr)
-    this->text_->make_call().set_value(this->timers_[index].to_string()).perform();
+    this->text_->make_call().set_value(std::get<0>(this->timers_[index]).to_string()).perform();
   if (update && (this->select_ != nullptr))
     this->select_->make_call().set_index(index).perform();
 }
