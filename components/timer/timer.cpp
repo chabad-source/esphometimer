@@ -22,14 +22,12 @@ or connect to: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 * 1-7 = Days (sun-sat)
 * 8 = Repeat
 * 9 = Negative Offset
-* 10 = Time hour
-* 11 = Time minute
+* 10 = Time/offset hour
+* 11 = Time/offset minute
 * 12 = Output  {value '0' for the first position of switch in the 'relays' variable}
 * 13 = Action  {'0' turn off, '1' turn on, '2' toggle}
-* 14 = Offset hour
-* 15 = Offset minute
-* 16 = Mode    {'0' use time, '1' use sunrise, '2' use sunset} 
-* sample "Live;1,Mode;0,Time;2:36,Repeat;1,Days;SMTWTFS,Output;1,Action;2,Offset;-0:30,"
+* 14 = Mode    {'0' use time, '1' use sunrise, '2' use sunset} 
+* sample "Live;1,Mode;0,Time;2:36,Repeat;1,Days;SMTWTFS,Output;1,Action;2"
 ****************************************************/
 
 #include "timer.h"
@@ -56,7 +54,7 @@ std::string TimerData::to_string() const {
         result += str_sprintf(",Offset;%c%d:%02d", use_negative_offset ? '-' : '+', this->hour, this->minute);
     }
 
-    result += str_sprintf(",Repeat;%d,Days;%c%c%c%c%c%c%c,Output;%d,Action;%d", this->repeat,
+    result += str_sprintf(",Repeat;%d,Days;%c%c%c%c%c%c%c,Output;%d", this->repeat,
                           this->days.day.sun ? 'S' : '-',
                           this->days.day.mon ? 'M' : '-',
                           this->days.day.tue ? 'T' : '-',
@@ -64,7 +62,11 @@ std::string TimerData::to_string() const {
                           this->days.day.thu ? 'T' : '-',
                           this->days.day.fri ? 'F' : '-',
                           this->days.day.sat ? 'S' : '-',
-                          this->output, this->action);
+                          this->output);
+    if (int(this->action) == this->action)
+      result += str_sprintf(",Action;%d", int(this->action));
+    else
+      result += str_sprintf(",Action;%f", this->action);
 
     return result;
 }
@@ -165,12 +167,15 @@ void TimerData::from_string(const std::string& settings) {
 }
 
 time_t TimerData::calc_next(time::RealTimeClock *time, time_t last) {
-  if (this->days.raw == 0)
+  if ((this->days.raw == 0) || (!this->live))
     return 0;
   ESPTime now = time->now();
+  if (!now.is_valid())
+    return 0;
   ESPTime next = last ? ESPTime::from_epoch_local(last) : now;
   next.hour = this->hour;
   next.minute = this->minute;
+  next.second = 0;
   next.recalc_timestamp_local();
   if (next.timestamp <= now.timestamp)
     next.increment_day();
@@ -184,7 +189,6 @@ time_t TimerData::calc_next(time::RealTimeClock *time, time_t last) {
 }
 
 void Timer::setup() {
-  ESP_LOGD(TAG, "setting up");
   for (auto &data : this->timers_) {
     if (!std::get<2>(data).load(&std::get<0>(data)))
       break;
@@ -199,15 +203,26 @@ void Timer::loop() {
   if (!this->init_done_) {
     for (auto &data : this->timers_) {
       time_t &next = std::get<1>(data);
-      if (next) {
-        if (next < now.timestamp)
+      if (next < now.timestamp) {
+        if (next)
           this->trigger_timer_(data);
-      } else {
         next = std::get<0>(data).calc_next(this->time_, 0);
         std::get<2>(data).save(&std::get<0>(data));
       }
     }
     this->init_done_ = true;
+    return;
+  }
+  if (this->last_check_ == now.timestamp)
+    return;
+  this->last_check_ = now.timestamp;
+  for (auto &data : this->timers_) {
+    time_t &next = std::get<1>(data);
+    if (next && (next <= now.timestamp)) {
+      this->trigger_timer_(data);
+      next = std::get<0>(data).calc_next(this->time_, 0);
+      std::get<2>(data).save(&std::get<0>(data));
+    }
   }
 }
 
@@ -216,12 +231,18 @@ void Timer::dump_config() {
 
 void Timer::set_num_timers(int count) {
   for (int i = 0; i < count; i++)
-    this->timers_.push_back(std::make_tuple(TimerData(), 0,
+    this->timers_.emplace_back(std::make_tuple(TimerData(), 0,
           global_preferences->make_preference<TimerData>(12345678 + i)));
 }
 
 void Timer::trigger_timer_(timer_tuple_t &data){
   TimerData &timer = std::get<0>(data);
+  int output = timer.output;
+  ESP_LOGD(TAG, "triggering output %d with action %f", output, timer.action);
+  if (output < this->outputs_.size())
+    this->outputs_[output](timer.action);
+  else
+    ESP_LOGE(TAG, "output %d does not exist", output);
   time_t &next = std::get<1>(data);
   next = std::get<0>(data).calc_next(this->time_, next);
   std::get<2>(data).save(&timer);
@@ -268,11 +289,14 @@ void Timer::choose(int index) {
 }
 
 void Timer::set_timer_text(const std::string &value) {
-  std::get<0>(this->timers_[this->selected_timer_]).from_string(value);
+  auto &data = this->timers_[this->selected_timer_];
+  std::get<0>(data).from_string(value);
   this->updating_ = true;
   if (this->text_ != nullptr)
     this->text_->make_call().set_value(std::get<0>(this->timers_[this->selected_timer_]).to_string()).perform();
   this->updating_ = false;
+  std::get<1>(data) = std::get<0>(data).calc_next(this->time_, 0);
+  std::get<2>(data).save(&std::get<0>(data));
 }
 
 void Timer::choose_(int index, bool update) {

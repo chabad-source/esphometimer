@@ -106,6 +106,7 @@ class Timer : public Component {
   int selected_timer_{-1};
   bool updating_{false};
   bool init_done_{false};
+  uint32_t last_check_{0};
 
   void choose_(int index, bool update);
   void trigger_timer_(timer_tuple_t &data);
