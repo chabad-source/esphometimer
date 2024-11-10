@@ -35,10 +35,10 @@ or connect to: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 #pragma once
 #include "esphome/core/automation.h"
 #include "esphome/core/component.h"
-#include "esphome/components/button/button.h"
 #include "esphome/components/select/select.h"
 #include "esphome/components/switch/switch.h"
 #include "esphome/components/text/text.h"
+#include "esphome/components/time/real_time_clock.h"
 
 #include <string>
 #include <vector>
@@ -46,7 +46,6 @@ or connect to: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
 
 namespace esphome {
 namespace timer {
-
 
 struct TimerData {
     bool valid : 1;
@@ -72,10 +71,14 @@ struct TimerData {
     uint8_t minute;
     time_t last_ran_timestamp;
 
+    TimerData();
     std::string to_string() const;
     void reset();
     void from_string(const std::string& settings);
+    time_t calc_next(time::RealTimeClock *time, time_t last);
 } __attribute__((packed));
+
+using timer_tuple_t = std::tuple<TimerData, time_t, ESPPreferenceObject>;
 
 class Timer : public Component {
  public:
@@ -84,6 +87,7 @@ class Timer : public Component {
   void loop() override;
   void dump_config() override;
 
+  void set_time(time::RealTimeClock *time) { time_ = time; }
   void set_num_timers(int count);
   void add_switch_output(switch_::Switch *sw);
   void add_automation_output(Trigger<float> *trigger);
@@ -94,14 +98,18 @@ class Timer : public Component {
   void set_timer_text(const std::string &value);
 
  protected:
-  std::vector<TimerData> timers_;
+  time::RealTimeClock *time_;
+  std::vector<timer_tuple_t> timers_;
   std::vector<std::function<void(float)>> outputs_;
   text::Text *text_{nullptr};
   select::Select *select_{nullptr};
   int selected_timer_{-1};
   bool updating_{false};
+  bool init_done_{false};
+  uint32_t last_check_{0};
 
   void choose_(int index, bool update);
+  void trigger_timer_(timer_tuple_t &data);
 };
 
 class TimerText : public Component, public text::Text {
@@ -112,11 +120,6 @@ class TimerText : public Component, public text::Text {
 class TimerSelect : public Component, public select::Select {
  public:
   void control(const std::string &value);
-};
-
-class TimerSaveButton : public Component, public button::Button {
- public:
-  void press_action() {}
 };
 
 }  // namespace timer
